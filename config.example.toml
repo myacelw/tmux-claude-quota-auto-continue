@@ -1,0 +1,14 @@
+poll_interval_seconds = 30
+capture_lines = 200
+default_wait_seconds = 18060
+wait_buffer_seconds = 60
+log_file = "./quota-monitor.log.jsonl"
+lock_file = "./quota-monitor.state.json"
+keywords = [
+  "rate limit",
+  "quota exceeded",
+  "5 hour limit",
+  "five hours",
+  "reset at",
+  "resets"
+]
