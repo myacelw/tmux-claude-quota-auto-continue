@@ -28,7 +28,7 @@ run-shell /path/to/repo/tmux-claude-quota-auto-continue.tmux
 
 ## 配置
 
-仓库仅保留 `config.toml`（单一配置文件），可直接使用。
+配置文件 `config.toml` ，可直接使用。
 支持：
 - 正则 `message_patterns`（建议 `(?P<reset_time>...)`）
 - 解析不到 reset 时间时跳过，不发送 continue

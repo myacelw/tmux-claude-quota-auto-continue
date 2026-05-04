@@ -30,7 +30,7 @@ run-shell /path/to/repo/tmux-claude-quota-auto-continue.tmux
 
 ## Configuration
 
-A default `config.toml` is included and ready to use (single config file).
+ `config.toml` is included and ready to use.
 Supported behavior:
 - Regex `message_patterns` (recommended to include `(?P<reset_time>...)`)
 - If reset time cannot be parsed, event is skipped and no `continue` is sent
