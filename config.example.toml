@@ -18,9 +18,9 @@ lock_file = "./quota-monitor.state.json"
 # 建议包含命名分组 (?P<reset_time>...) 来提取重置时间
 # 若未解析出 reset 时间，脚本将跳过该事件（不会发送 continue）
 message_patterns = [
-  "you['’]ve hit your limit\\s*[·\\-]?\\s*resets?\\s+(?P<reset_time>[0-9]{1,2}:[0-9]{2}\\s*(?:am|pm))",
-  "quota exceeded.*?resets?\\s+(?P<reset_time>[0-9]{1,2}:[0-9]{2}\\s*(?:am|pm))",
-  "rate limit.*?resets?\\s+(?P<reset_time>[0-9]{1,2}:[0-9]{2}\\s*(?:am|pm))",
-  "5\\s*hour\\s*limit.*?resets?\\s+(?P<reset_time>[0-9]{1,2}:[0-9]{2}\\s*(?:am|pm))",
-  "five\\s*hours?.*?resets?\\s+(?P<reset_time>[0-9]{1,2}:[0-9]{2}\\s*(?:am|pm))"
+  "you['’]ve hit your limit\\s*[·\\-]?\\s*resets?\\s+(?P<reset_time>[0-9]{1,2}(?::[0-9]{2})?\\s*(?:am|pm))",
+  "quota exceeded.*?resets?\\s+(?P<reset_time>[0-9]{1,2}(?::[0-9]{2})?\\s*(?:am|pm))",
+  "rate limit.*?resets?\\s+(?P<reset_time>[0-9]{1,2}(?::[0-9]{2})?\\s*(?:am|pm))",
+  "5\\s*hour\\s*limit.*?resets?\\s+(?P<reset_time>[0-9]{1,2}(?::[0-9]{2})?\\s*(?:am|pm))",
+  "five\\s*hours?.*?resets?\\s+(?P<reset_time>[0-9]{1,2}(?::[0-9]{2})?\\s*(?:am|pm))"
 ]
