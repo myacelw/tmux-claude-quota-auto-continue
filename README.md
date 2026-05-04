@@ -2,8 +2,6 @@
 
 tmux 插件：监控 Claude/Codex 限额文本，重置后自动在原 pane 发送 `continue`。
 
-> 项目名已统一为 `tmux-claude-quota-auto-continue`。
-
 ## TPM 安装方式（tmux-plugins 风格）
 
 在 `~/.tmux.conf` 中添加：
@@ -14,8 +12,6 @@ run '~/.tmux/plugins/tpm/tpm'
 ```
 
 然后在 tmux 中按 `prefix + I` 安装。
-
-仓库地址：`https://github.com/myacelw/tmux-claude-quota-auto-continue`
 
 ## 本地手动加载
 
@@ -43,21 +39,6 @@ cp config.example.toml config.toml
 - 正则 `message_patterns`（建议 `(?P<reset_time>...)`）
 - 解析不到 reset 时间时跳过，不发送 continue
 - 发送前再次确认 pane 仍为限额状态
-
-## 发布到 GitHub 供 TPM 使用
-
-1. 当前仓库：`https://github.com/myacelw/tmux-claude-quota-auto-continue`
-2. 确保仓库根目录存在：
-   - `tmux-claude-quota-auto-continue.tmux`（TPM 入口）
-   - `scripts/toggle-monitor.sh`
-   - `scripts/tmux_claude_quota_auto_continue.py`
-3. push 到 GitHub：
-   ```bash
-   git remote add origin git@github.com:myacelw/tmux-claude-quota-auto-continue.git
-   git push -u origin main
-   ```
-4. 用户通过 `set -g @plugin 'myacelw/tmux-claude-quota-auto-continue'` 安装。
-
 
 ### 状态栏标记不显示排查
 
