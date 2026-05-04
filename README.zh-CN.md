@@ -1,0 +1,42 @@
+# tmux-claude-quota-auto-continue
+
+tmux 插件：监控 Claude/Codex 限额文本，重置后自动在原 pane 发送 `continue`。
+
+## TPM 安装方式（tmux-plugins 风格）
+
+在 `~/.tmux.conf` 中添加：
+
+```tmux
+set -g @plugin 'myacelw/tmux-claude-quota-auto-continue'
+run '~/.tmux/plugins/tpm/tpm'
+```
+
+然后在 tmux 中按 `prefix + I` 安装。
+
+## 本地手动加载
+
+```tmux
+run-shell /path/to/repo/tmux-claude-quota-auto-continue.tmux
+```
+
+## 使用
+
+- 默认快捷键：`prefix + Q`（注意是大写 Q），可自定义快捷键：`set -g @claude_quota_key Q`
+- 第一次按下：启动（`CQ:ON`）
+- 再按一次：关闭（`CQ:OFF`）
+- 若你确实想用无前缀按键，可设置：`set -g @claude_quota_no_prefix 1`
+
+## 配置
+
+仓库已提供默认 `config.toml`，可直接使用。
+如需重置为模板：
+
+```bash
+cp config.example.toml config.toml
+```
+
+支持：
+- 正则 `message_patterns`（建议 `(?P<reset_time>...)`）
+- 解析不到 reset 时间时跳过，不发送 continue
+- 发送前再次确认 pane 仍为限额状态
+- `log_file` / `lock_file` 若使用相对路径，将相对于 `config.toml` 所在目录解析，默认日志文件为 `quota-monitor.log.jsonl`
