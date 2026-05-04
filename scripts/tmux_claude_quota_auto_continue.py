@@ -16,9 +16,9 @@ try:
 except ModuleNotFoundError as exc:  # pragma: no cover
     raise SystemExit("Python 3.11+ is required.") from exc
 
-RESET_PATTERNS = [
-    re.compile(r"reset(?:s)?\s+(?:at\s+)?([0-9]{1,2}:[0-9]{2}\s*(?:am|pm)?)", re.IGNORECASE),
-    re.compile(r"reset(?:s)?\s+(?:at\s+)?([0-9]{1,2}\s*(?:am|pm))", re.IGNORECASE),
+TIME_PATTERNS = [
+    re.compile(r"([0-9]{1,2}:[0-9]{2}\s*(?:am|pm))", re.IGNORECASE),
+    re.compile(r"([0-9]{1,2}\s*(?:am|pm))", re.IGNORECASE),
 ]
 
 
@@ -59,7 +59,7 @@ def save_state(path: Path, state: dict[str, Any]) -> None:
 
 
 def list_session_panes(session_name: str) -> list[str]:
-    out = run_tmux(["list-panes", "-t", session_name, "-a", "-F", "#{pane_id}"])
+    out = run_tmux(["list-panes", "-t", session_name, "-F", "#{pane_id}"])
     return [line.strip() for line in out.splitlines() if line.strip()]
 
 
@@ -67,17 +67,19 @@ def capture_pane(pane: str, lines: int) -> str:
     return run_tmux(["capture-pane", "-p", "-t", pane, "-S", f"-{lines}"])
 
 
-def detect_limit(text: str, keywords: list[str]) -> tuple[bool, str]:
-    low = text.lower()
-    for kw in keywords:
-        if kw.lower() in low:
-            return True, f"keyword:{kw}"
-    return False, ""
+def detect_limit(text: str, patterns: list[re.Pattern[str]]) -> tuple[bool, str, str | None]:
+    for pattern in patterns:
+        m = pattern.search(text)
+        if not m:
+            continue
+        reset_time = m.groupdict().get("reset_time") if m.groupdict() else None
+        return True, f"pattern:{pattern.pattern}", reset_time
+    return False, "", None
 
 
 def parse_wait_seconds(text: str, buffer_seconds: int) -> int | None:
     now = dt.datetime.now()
-    for pattern in RESET_PATTERNS:
+    for pattern in TIME_PATTERNS:
         match = pattern.search(text)
         if not match:
             continue
@@ -111,11 +113,11 @@ def main() -> int:
     cfg = load_toml(Path(args.config))
     poll = int(cfg.get("poll_interval_seconds", 30))
     lines = int(cfg.get("capture_lines", 200))
-    default_wait = int(cfg.get("default_wait_seconds", 18060))
     buffer_s = int(cfg.get("wait_buffer_seconds", 60))
     log_file = Path(cfg.get("log_file", "./quota-monitor.log.jsonl"))
     state_file = Path(cfg.get("lock_file", "./quota-monitor.state.json"))
-    keywords = list(cfg.get("keywords", []))
+    raw_patterns = list(cfg.get("message_patterns", []))
+    patterns = [re.compile(x, re.IGNORECASE | re.DOTALL) for x in raw_patterns]
 
     write_log(log_file, {"event": "monitor_started", "session": args.session})
     while True:
@@ -123,7 +125,7 @@ def main() -> int:
         state = load_state(state_file)
         for pane in panes:
             pane_output = capture_pane(pane, lines)
-            ok, reason = detect_limit(pane_output, keywords)
+            ok, reason, reset_time = detect_limit(pane_output, patterns)
             if not ok:
                 continue
             sig = fp(reason + pane_output[-1000:])
@@ -132,9 +134,12 @@ def main() -> int:
             if pane_state.get("last_sig") == sig and time.time() < until:
                 continue
 
-            wait_s = parse_wait_seconds(pane_output, buffer_s) or default_wait
+            wait_s = parse_wait_seconds(reset_time or pane_output, buffer_s)
+            if wait_s is None:
+                write_log(log_file, {"event": "limit_detected_no_reset_time", "session": args.session, "pane": pane, "reason": reason})
+                continue
             wait_until = int(time.time()) + wait_s
-            state[pane] = {"last_sig": sig, "wait_until": wait_until}
+            state[pane] = {"last_sig": sig, "wait_until": wait_until, "pattern_reason": reason}
             save_state(state_file, state)
             write_log(log_file, {"event": "limit_detected", "session": args.session, "pane": pane, "reason": reason, "wait_seconds": wait_s})
 
@@ -146,6 +151,17 @@ def main() -> int:
                 continue
             if pane_state.get("sent_for_sig") == pane_state.get("last_sig"):
                 continue
+
+            # 再次确认 pane 仍停留在限额状态，避免已退出或已进行其他操作时误发 continue
+            latest = capture_pane(pane, lines)
+            still_limited, _, _ = detect_limit(latest, patterns)
+            if not still_limited:
+                pane_state["sent_for_sig"] = pane_state.get("last_sig")
+                state[pane] = pane_state
+                changed = True
+                write_log(log_file, {"event": "continue_skipped_not_limited", "session": args.session, "pane": pane})
+                continue
+
             send_continue(pane)
             pane_state["sent_for_sig"] = pane_state.get("last_sig")
             state[pane] = pane_state
