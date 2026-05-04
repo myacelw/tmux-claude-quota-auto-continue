@@ -1,0 +1,26 @@
+# 轮询间隔（秒）：每隔多久扫描一次 pane 输出
+poll_interval_seconds = 30
+
+# 每次 capture-pane 抓取的历史行数
+capture_lines = 300
+
+# 在解析出的 reset 时间基础上额外增加的缓冲秒数
+# 避免刚到点时服务端尚未完全放行
+wait_buffer_seconds = 30
+
+# JSONL 日志文件路径
+log_file = "./quota-monitor.log.jsonl"
+
+# 状态锁文件路径（JSON）
+lock_file = "./quota-monitor.state.json"
+
+# 限额消息正则列表（按顺序匹配）
+# 建议包含命名分组 (?P<reset_time>...) 来提取重置时间
+# 若未解析出 reset 时间，脚本将跳过该事件（不会发送 continue）
+message_patterns = [
+  "you['’]ve hit your limit\\s*[·\\-]?\\s*resets?\\s+(?P<reset_time>[0-9]{1,2}:[0-9]{2}\\s*(?:am|pm))",
+  "quota exceeded.*?resets?\\s+(?P<reset_time>[0-9]{1,2}:[0-9]{2}\\s*(?:am|pm))",
+  "rate limit.*?resets?\\s+(?P<reset_time>[0-9]{1,2}:[0-9]{2}\\s*(?:am|pm))",
+  "5\\s*hour\\s*limit.*?resets?\\s+(?P<reset_time>[0-9]{1,2}:[0-9]{2}\\s*(?:am|pm))",
+  "five\\s*hours?.*?resets?\\s+(?P<reset_time>[0-9]{1,2}:[0-9]{2}\\s*(?:am|pm))"
+]
