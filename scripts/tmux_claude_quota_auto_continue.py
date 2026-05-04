@@ -58,9 +58,21 @@ def save_state(path: Path, state: dict[str, Any]) -> None:
     path.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def list_session_panes(session_name: str) -> list[str]:
-    out = run_tmux(["list-panes", "-t", session_name, "-F", "#{pane_id}"])
-    return [line.strip() for line in out.splitlines() if line.strip()]
+def list_session_panes(session_name: str) -> list[dict[str, str]]:
+    out = run_tmux([
+        "list-panes",
+        "-t",
+        session_name,
+        "-F",
+        "#{pane_id}\t#{session_name}\t#{window_name}",
+    ])
+    panes: list[dict[str, str]] = []
+    for line in out.splitlines():
+        if not line.strip():
+            continue
+        pane_id, sess_name, window_name = (line.split("\t", 2) + ["", ""])[:3]
+        panes.append({"pane": pane_id, "session": sess_name, "window": window_name})
+    return panes
 
 
 def capture_pane(pane: str, lines: int) -> str:
@@ -73,7 +85,7 @@ def detect_limit(text: str, patterns: list[re.Pattern[str]]) -> tuple[bool, str,
         if not m:
             continue
         reset_time = m.groupdict().get("reset_time") if m.groupdict() else None
-        return True, f"pattern:{pattern.pattern}", reset_time
+        return True, m.group(0), reset_time
     return False, "", None
 
 
@@ -129,7 +141,8 @@ def main() -> int:
     while True:
         panes = list_session_panes(args.session)
         state = load_state(state_file)
-        for pane in panes:
+        for pane_info in panes:
+            pane = pane_info["pane"]
             pane_output = capture_pane(pane, lines)
             ok, reason, reset_time = detect_limit(pane_output, patterns)
             if not ok:
@@ -142,12 +155,12 @@ def main() -> int:
 
             wait_s = parse_wait_seconds(reset_time or pane_output, buffer_s)
             if wait_s is None:
-                write_log(log_file, {"event": "limit_detected_no_reset_time", "session": args.session, "pane": pane, "reason": reason})
+                write_log(log_file, {"event": "limit_detected_no_reset_time", "session": pane_info["session"] or args.session, "pane": pane, "window": pane_info["window"], "reason": reason})
                 continue
             wait_until = int(time.time()) + wait_s
             state[pane] = {"last_sig": sig, "wait_until": wait_until, "pattern_reason": reason}
             save_state(state_file, state)
-            write_log(log_file, {"event": "limit_detected", "session": args.session, "pane": pane, "reason": reason, "wait_seconds": wait_s})
+            write_log(log_file, {"event": "limit_detected", "session": pane_info["session"] or args.session, "pane": pane, "window": pane_info["window"], "reason": reason, "wait_seconds": wait_s})
 
         state = load_state(state_file)
         now = int(time.time())
