@@ -23,7 +23,7 @@ run-shell /path/to/repo/tmux-claude-quota-auto-continue.tmux
 
 ## 使用
 
-- 默认快捷键：`prefix + q`（避免与终端/系统 Ctrl-q 冲突）
+- 默认快捷键：`prefix + q`
 - 第一次按下：启动（`CQ:ON`）
 - 再按一次：关闭（`CQ:OFF`）
 - 若你确实想用无前缀按键，可设置：`set -g @claude_quota_no_prefix 1`
@@ -42,23 +42,9 @@ cp config.example.toml config.toml
 - 解析不到 reset 时间时跳过，不发送 continue
 - 发送前再次确认 pane 仍为限额状态
 
-## 发布到 GitHub 供 TPM 使用
-
-1. 当前仓库：`https://github.com/myacelw/claude-tmux-retry`
-2. 确保仓库根目录存在：
-   - `tmux-claude-quota-auto-continue.tmux`（TPM 入口）
-   - `scripts/toggle-monitor.sh`
-   - `scripts/tmux_claude_quota_auto_continue.py`
-3. push 到 GitHub：
-   ```bash
-   git remote add origin git@github.com:myacelw/claude-tmux-retry.git
-   git push -u origin main
-   ```
-4. 用户通过 `set -g @plugin 'myacelw/claude-tmux-retry'` 安装。
-
-
 ### 状态栏标记不显示排查
 
 1. 先确认已 reload：`tmux source-file ~/.tmux.conf`。
 2. 确认没关闭注入：`@claude_quota_status_off` 不应为 `1`。
 3. 如果你在插件加载后又重写了 `status-right`，需要把插件放到配置最后，或手动保留 `CQ:ON/CQ:OFF` 片段。
+

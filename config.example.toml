@@ -1,12 +1,12 @@
 # 轮询间隔（秒）：每隔多久扫描一次 pane 输出
-poll_interval_seconds = 30
+poll_interval_seconds = 60
 
 # 每次 capture-pane 抓取的历史行数
-capture_lines = 300
+capture_lines = 30
 
 # 在解析出的 reset 时间基础上额外增加的缓冲秒数
 # 避免刚到点时服务端尚未完全放行
-wait_buffer_seconds = 30
+wait_buffer_seconds = 60
 
 # JSONL 日志文件路径
 log_file = "./quota-monitor.log.jsonl"
