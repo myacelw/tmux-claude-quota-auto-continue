@@ -21,7 +21,7 @@ run-shell /path/to/repo/tmux-claude-quota-auto-continue.tmux
 
 ## 使用
 
-- 默认快捷键：`prefix + Q`（避免与终端/系统 Ctrl-q 冲突）
+- 默认快捷键：`prefix + Q`（注意是大写Q），可自定义快捷键：`set -g @claude_quota_key Q`
 - 第一次按下：启动（`CQ:ON`）
 - 再按一次：关闭（`CQ:OFF`）
 - 若你确实想用无前缀按键，可设置：`set -g @claude_quota_no_prefix 1`
@@ -39,11 +39,5 @@ cp config.example.toml config.toml
 - 正则 `message_patterns`（建议 `(?P<reset_time>...)`）
 - 解析不到 reset 时间时跳过，不发送 continue
 - 发送前再次确认 pane 仍为限额状态
-- `log_file` / `lock_file` 若使用相对路径，将相对于 `config.toml` 所在目录解析
+- `log_file` / `lock_file` 若使用相对路径，将相对于 `config.toml` 所在目录解析，默认日志文件为`quota-monitor.log.jsonl`
 
-
-### 状态栏标记不显示排查
-
-1. 先确认已 reload：`tmux source-file ~/.tmux.conf`。
-2. 确认没关闭注入：`@claude_quota_status_off` 不应为 `1`。
-3. 如果你在插件加载后又重写了 `status-right`，需要把插件放到配置最后，或手动保留 `CQ:ON/CQ:OFF` 片段。
