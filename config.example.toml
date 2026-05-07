@@ -21,6 +21,7 @@ message_patterns = [
   "you['’]ve hit your limit\\s*[·\\-]?\\s*resets?\\s+(?P<reset_time>[0-9]{1,2}(?::[0-9]{2})?\\s*(?:am|pm))",
   "quota exceeded.*?resets?\\s+(?P<reset_time>[0-9]{1,2}(?::[0-9]{2})?\\s*(?:am|pm))",
   "rate limit.*?resets?\\s+(?P<reset_time>[0-9]{1,2}(?::[0-9]{2})?\\s*(?:am|pm))",
+  "you['’]ve hit your usage limit.*?try again at\\s+(?P<reset_time>[0-9]{1,2}(?::[0-9]{2})?\\s*(?:am|pm))",
   "5\\s*hour\\s*limit.*?resets?\\s+(?P<reset_time>[0-9]{1,2}(?::[0-9]{2})?\\s*(?:am|pm))",
   "five\\s*hours?.*?resets?\\s+(?P<reset_time>[0-9]{1,2}(?::[0-9]{2})?\\s*(?:am|pm))"
 ]

@@ -19,6 +19,10 @@ stop_monitor() {
   tmux display-message "quota monitor stopped for session: $SESSION_NAME"
 }
 
+find_monitor_pid_by_session() {
+  pgrep -f "tmux_claude_quota_auto_continue.py --session $SESSION_NAME" | head -n1 || true
+}
+
 start_monitor() {
   nohup python3 "$REPO_ROOT/scripts/tmux_claude_quota_auto_continue.py" --session "$SESSION_NAME" --config "$CONFIG_PATH" >/dev/null 2>&1 &
   echo $! > "$PID_FILE"
@@ -26,12 +30,27 @@ start_monitor() {
   tmux display-message "quota monitor started for session: $SESSION_NAME"
 }
 
+enabled="$(tmux show-option -t "$SESSION_NAME" -qv @claude_quota_enabled)"
+if [[ "$enabled" == "1" ]]; then
+  stop_monitor
+  exit 0
+fi
+
 if [[ -f "$PID_FILE" ]]; then
   old_pid="$(cat "$PID_FILE")"
   if kill -0 "$old_pid" 2>/dev/null; then
-    stop_monitor
+    tmux set-option -t "$SESSION_NAME" -q @claude_quota_enabled 1
+    tmux display-message "quota monitor already running for session: $SESSION_NAME"
     exit 0
   fi
+fi
+
+fallback_pid="$(find_monitor_pid_by_session)"
+if [[ -n "$fallback_pid" ]]; then
+  echo "$fallback_pid" > "$PID_FILE"
+  tmux set-option -t "$SESSION_NAME" -q @claude_quota_enabled 1
+  tmux display-message "quota monitor already running for session: $SESSION_NAME"
+  exit 0
 fi
 
 start_monitor
