@@ -8,6 +8,14 @@ capture_lines = 30
 # Helps avoid sending too early at exact reset boundary
 wait_buffer_seconds = 60
 
+# If the detected reset time is only slightly in the past (stale UI text),
+# wait this many seconds at most before trying continue again.
+stale_reset_grace_seconds = 600
+
+# Reset-time timezone for parsing strings like "resets 2:40pm".
+# Use "local" to follow system local timezone, or an IANA name like "Asia/Shanghai".
+reset_time_timezone = "local"
+
 # JSONL log file path
 log_file = "./quota-monitor.log.jsonl"
 

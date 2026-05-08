@@ -10,6 +10,7 @@ import subprocess
 import time
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 try:
     import tomllib
@@ -33,15 +34,19 @@ def now_iso() -> str:
     return dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+def now_local_iso(tz: dt.tzinfo) -> str:
+    return dt.datetime.now(tz).isoformat()
+
+
 def load_toml(path: Path) -> dict[str, Any]:
     with path.open("rb") as f:
         return tomllib.load(f)
 
 
-def write_log(path: Path, payload: dict[str, Any]) -> None:
+def write_log(path: Path, payload: dict[str, Any], log_tz: dt.tzinfo) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as f:
-        f.write(json.dumps({"ts": now_iso(), **payload}, ensure_ascii=False) + "\n")
+        f.write(json.dumps({"ts": now_iso(), "ts_local": now_local_iso(log_tz), **payload}, ensure_ascii=False) + "\n")
 
 
 def load_state(path: Path) -> dict[str, Any]:
@@ -89,8 +94,13 @@ def detect_limit(text: str, patterns: list[re.Pattern[str]]) -> tuple[bool, str,
     return False, "", None
 
 
-def parse_wait_seconds(text: str, buffer_seconds: int) -> int | None:
-    now = dt.datetime.now()
+def parse_wait_seconds(
+    text: str,
+    buffer_seconds: int,
+    stale_reset_grace_seconds: int = 600,
+    now: dt.datetime | None = None,
+) -> int | None:
+    current = now or dt.datetime.now()
     for pattern in TIME_PATTERNS:
         match = pattern.search(text)
         if not match:
@@ -99,10 +109,13 @@ def parse_wait_seconds(text: str, buffer_seconds: int) -> int | None:
         for fmt in ["%I:%M%p", "%I%p"]:
             try:
                 parsed = dt.datetime.strptime(raw, fmt).time()
-                cand = now.replace(hour=parsed.hour, minute=parsed.minute, second=0, microsecond=0)
-                if cand <= now:
+                cand = current.replace(hour=parsed.hour, minute=parsed.minute, second=0, microsecond=0)
+                if cand <= current:
+                    elapsed = (current - cand).total_seconds()
+                    if elapsed <= stale_reset_grace_seconds:
+                        return buffer_seconds
                     cand += dt.timedelta(days=1)
-                return int((cand - now).total_seconds()) + buffer_seconds
+                return int((cand - current).total_seconds()) + buffer_seconds
             except ValueError:
                 continue
     return None
@@ -129,6 +142,12 @@ def main() -> int:
     poll = int(cfg.get("poll_interval_seconds", 30))
     lines = int(cfg.get("capture_lines", 200))
     buffer_s = int(cfg.get("wait_buffer_seconds", 60))
+    stale_grace_s = int(cfg.get("stale_reset_grace_seconds", 600))
+    reset_tz_name = str(cfg.get("reset_time_timezone", "local")).strip()
+    if reset_tz_name.lower() == "local":
+        reset_tz = dt.datetime.now().astimezone().tzinfo or dt.timezone.utc
+    else:
+        reset_tz = ZoneInfo(reset_tz_name)
 
     log_file_cfg = Path(cfg.get("log_file", "./quota-monitor.log.jsonl")).expanduser()
     state_file_cfg = Path(cfg.get("lock_file", "./quota-monitor.state.json")).expanduser()
@@ -137,7 +156,7 @@ def main() -> int:
     raw_patterns = list(cfg.get("message_patterns", []))
     patterns = [re.compile(x, re.IGNORECASE | re.DOTALL) for x in raw_patterns]
 
-    write_log(log_file, {"event": "monitor_started", "session": args.session})
+    write_log(log_file, {"event": "monitor_started", "session": args.session, "reset_time_timezone": reset_tz_name}, reset_tz)
     while True:
         panes = list_session_panes(args.session)
         state = load_state(state_file)
@@ -153,14 +172,19 @@ def main() -> int:
             if pane_state.get("last_sig") == sig and time.time() < until:
                 continue
 
-            wait_s = parse_wait_seconds(reset_time or pane_output, buffer_s)
+            wait_s = parse_wait_seconds(
+                reset_time or pane_output,
+                buffer_s,
+                stale_grace_s,
+                now=dt.datetime.now(reset_tz),
+            )
             if wait_s is None:
-                write_log(log_file, {"event": "limit_detected_no_reset_time", "session": pane_info["session"] or args.session, "pane": pane, "window": pane_info["window"], "reason": reason})
+                write_log(log_file, {"event": "limit_detected_no_reset_time", "session": pane_info["session"] or args.session, "pane": pane, "window": pane_info["window"], "reason": reason}, reset_tz)
                 continue
             wait_until = int(time.time()) + wait_s
             state[pane] = {"last_sig": sig, "wait_until": wait_until, "pattern_reason": reason}
             save_state(state_file, state)
-            write_log(log_file, {"event": "limit_detected", "session": pane_info["session"] or args.session, "pane": pane, "window": pane_info["window"], "reason": reason, "wait_seconds": wait_s})
+            write_log(log_file, {"event": "limit_detected", "session": pane_info["session"] or args.session, "pane": pane, "window": pane_info["window"], "reason": reason, "wait_seconds": wait_s}, reset_tz)
 
         state = load_state(state_file)
         now = int(time.time())
@@ -178,14 +202,14 @@ def main() -> int:
                 pane_state["sent_for_sig"] = pane_state.get("last_sig")
                 state[pane] = pane_state
                 changed = True
-                write_log(log_file, {"event": "continue_skipped_not_limited", "session": args.session, "pane": pane})
+                write_log(log_file, {"event": "continue_skipped_not_limited", "session": args.session, "pane": pane}, reset_tz)
                 continue
 
             send_continue(pane)
             pane_state["sent_for_sig"] = pane_state.get("last_sig")
             state[pane] = pane_state
             changed = True
-            write_log(log_file, {"event": "continue_sent", "session": args.session, "pane": pane})
+            write_log(log_file, {"event": "continue_sent", "session": args.session, "pane": pane}, reset_tz)
         if changed:
             save_state(state_file, state)
 

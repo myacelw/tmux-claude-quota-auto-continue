@@ -8,6 +8,14 @@ capture_lines = 30
 # 避免刚到点时服务端尚未完全放行
 wait_buffer_seconds = 60
 
+# 当检测到的 reset 时间刚刚过去（UI 文本可能滞后）时，
+# 最多允许回看这么多秒，并按 buffer 快速重试 continue。
+stale_reset_grace_seconds = 600
+
+# Reset-time timezone for parsing strings like "resets 2:40pm".
+# Use "local" to follow system local timezone, or an IANA name like "Asia/Shanghai".
+reset_time_timezone = "local"
+
 # JSONL 日志文件路径
 log_file = "./quota-monitor.log.jsonl"
 
